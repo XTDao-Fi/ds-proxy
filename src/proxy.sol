@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // proxy.sol - execute actions atomically through the proxy's identity
 
 // Copyright (C) 2017  DappHub, LLC
@@ -15,7 +17,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity >=0.5.0 <0.6.0;
+pragma solidity >=0.6.12;
 
 import "ds-auth/auth.sol";
 import "ds-note/note.sol";
@@ -32,14 +34,13 @@ contract DSProxy is DSAuth, DSNote {
         setCache(_cacheAddr);
     }
 
-    function() external payable {
+    receive() external payable {
     }
-
     // use the proxy to execute calldata _data on contract _code
     function execute(bytes memory _code, bytes memory _data)
-        public
-        payable
-        returns (address target, bytes memory response)
+    public
+    payable
+    returns (address target, bytes memory response)
     {
         target = cache.read(_code);
         if (target == address(0)) {
@@ -51,18 +52,18 @@ contract DSProxy is DSAuth, DSNote {
     }
 
     function execute(address _target, bytes memory _data)
-        public
-        auth
-        note
-        payable
-        returns (bytes memory response)
+    public
+    auth
+    note
+    payable
+    returns (bytes memory response)
     {
         require(_target != address(0), "ds-proxy-target-address-required");
 
         // call contract in current context
         assembly {
-            let succeeded := delegatecall(sub(gas, 5000), _target, add(_data, 0x20), mload(_data), 0, 0)
-            let size := returndatasize
+            let succeeded := delegatecall(sub(gas(), 5000), _target, add(_data, 0x20), mload(_data), 0, 0)
+            let size := returndatasize()
 
             response := mload(0x40)
             mstore(0x40, add(response, and(add(add(size, 0x20), 0x1f), not(0x1f))))
@@ -71,7 +72,7 @@ contract DSProxy is DSAuth, DSNote {
 
             switch iszero(succeeded)
             case 1 {
-                // throw if delegatecall failed
+            // throw if delegatecall failed
                 revert(add(response, 0x20), size)
             }
         }
@@ -79,10 +80,10 @@ contract DSProxy is DSAuth, DSNote {
 
     //set new cache
     function setCache(address _cacheAddr)
-        public
-        auth
-        note
-        returns (bool)
+    public
+    auth
+    note
+    returns (bool)
     {
         require(_cacheAddr != address(0), "ds-proxy-cache-address-required");
         cache = DSProxyCache(_cacheAddr);  // overwrite cache
@@ -140,7 +141,7 @@ contract DSProxyCache {
             target := create(0, add(_code, 0x20), mload(_code))
             switch iszero(extcodesize(target))
             case 1 {
-                // throw if contract failed to deploy
+            // throw if contract failed to deploy
                 revert(0, 0)
             }
         }
